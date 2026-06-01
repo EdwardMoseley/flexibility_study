@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# OSPREY / computational outputs
+*.log
+*.out
+*.err
+*.tsv
+*.csv
+*.dat
+*.pdb
+*.confdb*
+
+# Slurm
+slurm-*.out
+
+# Large generated files
+results/
+output/
+logs/
+tmp/
+
+# Conda
+.conda/
+

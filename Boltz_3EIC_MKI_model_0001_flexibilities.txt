@@ -1,0 +1,35 @@
+## B1 - PHE
+You clicked /Boltz_3EIC_MKI_model_0001//A/ASP`207/CG
+You clicked /Boltz_3EIC_MKI_model_0001//A/ARG`217/NH2
+You clicked /Boltz_3EIC_MKI_model_0001//A/LEU`204/CD1
+You clicked /Boltz_3EIC_MKI_model_0001//A/SER`203/CB
+
+### ['A203', 'A204', 'A207', 'A217']
+
+## B2 - PRO
+
+### A203, A204
+
+## B3 - LEU
+
+### A94 A97 A98 A171 A198 A202 A203 A204 
+
+## B4 - LYS
+
+### A94 A204 A207
+
+## B5 - ARG
+
+### A92 A94 A95 A135
+
+## B6 - HIS
+
+### A170 A171 A133 A135 A168 A169 A214 A204 A207
+
+## B7 - ASP
+
+### A133 A168 A169
+
+## B8 - LYS
+
+### 
