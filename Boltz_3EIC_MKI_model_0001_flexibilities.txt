@@ -1,8 +1,7 @@
+# All 4Angstrom's near residue
+# Includes backbone contacts
+
 ## B1 - PHE
-You clicked /Boltz_3EIC_MKI_model_0001//A/ASP`207/CG
-You clicked /Boltz_3EIC_MKI_model_0001//A/ARG`217/NH2
-You clicked /Boltz_3EIC_MKI_model_0001//A/LEU`204/CD1
-You clicked /Boltz_3EIC_MKI_model_0001//A/SER`203/CB
 
 ### ['A203', 'A204', 'A207', 'A217']
 
@@ -32,4 +31,28 @@ You clicked /Boltz_3EIC_MKI_model_0001//A/SER`203/CB
 
 ## B8 - LYS
 
-### 
+### A131 A133 A136 A149 A151 A152 A167 A168 A169
+
+## B9 - VAL
+
+### A152 A166 A167 A168 A169 A211
+
+## B10 - ASP
+
+### A52 A152 A165 A166
+
+## B11 - ASP
+
+### A165 A166
+
+## B12 - LEU
+
+### A165 A166 A167 A168 A169 A172 A176 A177
+
+## B13 - SER
+
+### A165 A177 A178 A179
+
+## B14 - LYS
+
+### NONE
