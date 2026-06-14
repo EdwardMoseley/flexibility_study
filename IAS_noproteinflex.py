@@ -85,7 +85,7 @@ for res in lig_flex:
 three_letter_amino_acid_codes = [
     "ALA", "ARG", "ASN", "ASP", "CYS",
     "GLN", "GLU", "GLY", "HIS", "ILE",
-    "LEU", "LYS", "MET", "PHE", "PRO",
+    "LEU", "LYS", "MET", "PHE", #"PRO",
     "SER", "THR", "TRP", "TYR", "VAL"
 ]
 
