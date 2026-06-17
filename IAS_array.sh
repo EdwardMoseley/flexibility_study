@@ -5,6 +5,8 @@
 
 ## Call with:
 # sbatch --array=1-4%1 IAS_array.sh Boltz_3EIC_MKI_model_0001.pdb A203 A204 A207 A217
+# B4
+# sbatch --array=1-4%1 IAS_array.sh 2LOB_Model_One.clean.pdb A50 A89 A90 A91 A92 A93 A95
 
 set -euo pipefail
 

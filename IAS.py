@@ -34,7 +34,7 @@ print(f"Number of residues in Chain B: {residue_count_chain_b}")
 chain_a_residues = ["A" + str(i) for i in range(1, residue_count_chain_a + 1)]
 chain_b_residues = ["B" + str(i) for i in range(1, residue_count_chain_b + 1)]
 
-target_res = 'B13'
+target_res = 'B4'
 
 prot_flex = [protein_flexible_residue]
 lig_flex = [target_res]
