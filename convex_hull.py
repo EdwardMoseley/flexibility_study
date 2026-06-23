@@ -26,12 +26,28 @@ except ModuleNotFoundError:
     from CCKStar.Find_Doublets import SCOPE
 
 
+if len(sys.argv) < 2:
+    print("Usage: python convex_hull.py <file_name>")
+    sys.exit(1)
+
+file_name = sys.argv[1]
+
 # ensure output folder exists so SCOPE can write hull PDBs
 outfolder = "pdb_hulls"
 os.makedirs(outfolder, exist_ok=True)
 
+three_letter_amino_acid_codes = [
+    "ALA", "ARG", "ASN", "ASP", "CYS",
+    "GLN", "GLU", "GLY", "HIS", "ILE",
+    "LEU", "LYS", "MET", "PHE", "PRO",
+    "SER", "THR", "TRP", "TYR", "VAL"
+]
+
+## We want to iterate over each of the amino acids in the list 
+## and call SCOPE for each one, saving the results to a file.
+
 contacts, interchain = SCOPE(
-    "2LOB_Model_One.clean.pdb",
+    file_name,
     "pdb_hulls",
     "C",                      # design chain ID
     ['TRP'],          # design_AA_type (example)
@@ -40,3 +56,4 @@ contacts, interchain = SCOPE(
     []                         # fixed_identity
 )
 print(contacts, interchain)
+
