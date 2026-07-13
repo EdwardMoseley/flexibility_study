@@ -1,10 +1,13 @@
 import sys
 import os
+from Find_Doublets import SCOPE, rank_flex_overlap
 
 # Prefer adding the CCKStar package directory directly so internal imports like
 # `from Make_Convex_Hull import ...` work when importing modules.
 # some interactive environments (REPL, Python -c) don't define __file__;
 # fall back to the current working directory in that case.
+
+"""
 try:
     base_dir = os.path.dirname(__file__)
 except NameError:
@@ -24,10 +27,10 @@ except ModuleNotFoundError:
     if py_src_dir not in sys.path:
         sys.path.insert(0, py_src_dir)
     from CCKStar.Find_Doublets import SCOPE
-
+"""
 
 if len(sys.argv) < 2:
-    print("Usage: python convex_hull.py <file_name>")
+    print("Usage: python3 convex_hull.py <file_name>")
     sys.exit(1)
 
 file_name = sys.argv[1]
@@ -50,10 +53,23 @@ contacts, interchain = SCOPE(
     file_name,
     "pdb_hulls",
     "C",                      # design chain ID
-    ['TRP'],          # design_AA_type (example)
-    True,                      # savePDB
+    ['TRP'],                  # design_AA_type (example)
+    False,                      # savePDB
     "L",                      # design_chirality
     []                         # fixed_identity
 )
-print(contacts, interchain)
+print(contacts)
 
+print(interchain)
+
+# # optional: order the flexible residues by volume overlap with design chain hulls
+# # this is useful for prioritizing flexible residues over a large search space
+# # returns: {design res, target res : cubic angstrom overlap}
+flex_order = rank_flex_overlap('B', 
+                               'A', 
+                               intrachain_pairs, 
+                               interchain_pairs, 
+                               'pdb_hulls')
+
+print("Printing Flex Order:")
+print(flex_order)
