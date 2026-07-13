@@ -52,7 +52,7 @@ three_letter_amino_acid_codes = [
 contacts, interchain = SCOPE(
     file_name,
     "pdb_hulls",
-    "C",                      # design chain ID
+    "B",                      # design chain ID
     ['TRP'],                  # design_AA_type (example)
     False,                      # savePDB
     "L",                      # design_chirality
@@ -67,8 +67,8 @@ print(interchain)
 # # returns: {design res, target res : cubic angstrom overlap}
 flex_order = rank_flex_overlap('B', 
                                'A', 
-                               intrachain_pairs, 
-                               interchain_pairs, 
+                               contacts, 
+                               interchain, 
                                'pdb_hulls')
 
 print("Printing Flex Order:")
