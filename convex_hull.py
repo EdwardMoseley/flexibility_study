@@ -54,7 +54,7 @@ contacts, interchain = SCOPE(
     "pdb_hulls",
     "B",                      # design chain ID
     ['TRP'],                  # design_AA_type (example)
-    False,                      # savePDB
+    True,                      # savePDB
     "L",                      # design_chirality
     []                         # fixed_identity
 )
@@ -62,14 +62,18 @@ print(contacts)
 
 print(interchain)
 
+for obj in interchain:
+    print(obj)
+
 # # optional: order the flexible residues by volume overlap with design chain hulls
 # # this is useful for prioritizing flexible residues over a large search space
 # # returns: {design res, target res : cubic angstrom overlap}
-flex_order = rank_flex_overlap('B', 
-                               'A', 
-                               contacts, 
-                               interchain, 
-                               'pdb_hulls')
+#flex_order = rank_flex_overlap('B', 
+#                               'A', 
+#                               contacts, 
+#                               interchain, 
+#                               'pdb_hulls')
 
-print("Printing Flex Order:")
-print(flex_order)
+#print("Printing Flex Order:")
+#print(flex_order)
+

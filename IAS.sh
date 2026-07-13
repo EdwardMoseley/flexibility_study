@@ -2,9 +2,15 @@
 
 set -euo pipefail
 
-FILENAME="$1"
-PROT_FLEX="$2"
+if [[ $# -lt 1 ]]; then
+    echo "Usage: $0 <file_name> [protein_flexible_residue] [ligand_residue]"
+    exit 1
+fi
 
-python3 IAS.py "$FILENAME" "$PROT_FLEX"
+FILENAME="${1:-}"
+PROT_FLEX="${2:-}"
+LIG_RESIDUE="${3:-}"
+
+python3 IAS.py "$FILENAME" "$PROT_FLEX" "$LIG_RESIDUE"
 
 echo "Completed!"
