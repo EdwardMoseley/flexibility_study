@@ -1,0 +1,778 @@
+---
+title: "SKEMPI"
+output: html_document
+date: "2026-07-08"
+---
+
+`https://life.bsc.es/pid/skempi2/info/faq_and_help`
+
+Q. I don't see any ΔG or ΔΔG values in the table. How do I calculate these?
+
+A. The affinities (Kd) of the wild-type complexes are in the column 'affinity_wt' and the affinities of the mutant are in the column 'affinity_mut'. These can be converted to ΔG values by the relationship ΔG = RT ln Kd; at room temperature this is `ΔG = (8.314/4184)*(273.15 + 25.0) * ln(wt)`, where ln() is the natural logarithm. The changes in affinity upon mutation is calculated as `ΔΔG = ΔGmut-ΔGwt.`
+
+Q. What is the format of the database?
+
+A. The information and format of the columns are as follows:
+
+1) The PDB entry for the complex, followed by the chain identifiers for the two subunits. The first chain(s) correspond to protein 1 (column 10) and the second chain(s) correspond to protein 2 (column 11). Following this link will lead you to the relevant page in the protein databank.
+
+2) The mutation(s) corresponding to the residue numbering found in the protein databank. The first character is the one letter amino acid code for the original residue, the second character is the chain identifier, the third to penultimate characters indicate the residue number, followed by the residue insertion code where applicable, and the final character indicates the mutant amino acid. Where multiple mutations are present, they are separated by commas.
+
+3) The mutation(s) corresponding to the residue numbering in the 'cleaned' pdb files, in the same format as for column 2.
+
+4) The locations of the mutations(s) in or away from the binding site, as defined in "A simple definition of structural regions in proteins and its use in analyzing interface evolution", ED Levy, J Mol Biol. 2010, 403(4):660-70.
+
+5) The hold-out type. Some of the complexes are classified as protease-inhibitor (Pr/PI), antibody-antigen (AB/AG) or pMHC-TCR (TCR/pMHC). This classification was introduced to aid in the cross-validation of empirical models trained using the data in the SKEMPI database, so that proteins of a similar type can be simultaneously held out during a cross-validation.
+
+6) The hold-out proteins. This column contains the PDB identifiers (in column 1) and/or hold-out types (column 5) for all the protein complexes which may be excluded from the training when cross-validating an empirical model trained on this data, so as to avoid contaminating the training set with information pertaining to the binding site being evaluated.
+
+7) The affinity of the mutant form (M).
+
+8) The affinity of the wild-type form, or form in the PDB structure (M).
+
+9) The reference for the affinities, as well as any further kinetic or thermodynamic information. Where available, the pubmed ID is given with a link to the relevant entry in pubmed, otherwise the whole reference is given.
+
+10) Protein 1. This is the name of the protein which corresponds to the first chain(s) given in column 1.
+
+11) Protein 2. This is the name of the protein which corresponds to the second chain(s) given in column 1.
+
+12) The temperature at which the experiment was performed.
+
+13) The association rate for the mutant protein, where available (M^(-1)s^(-1)).
+
+14) The association rate for the wild-type protein or protein in the crystal structure, where available (M^(-1)S^(-1)).
+
+15) The dissociation rate for the mutant protein, where available (s^(-1)).
+
+16) The dissociation rate for the wild-type protein or protein in the crystal structure, where available (s^(-1)).
+
+17) The enthalpy of association for the mutant protein, where available (kcal mol^(-1)).
+
+18) The enthalpy of association for the wild-type protein or protein in the crystal structure, where available (kcal mol^(-1)).
+
+19) The entropy of association for the mutant protein, where available (cal mol^(-1) K^(-1)).
+
+20) The entropy of association for the wild-type protein or protein in the crystal structure, where available (cal mol^(-1) K^(-1)).
+
+21) Notes regarding the entry.
+
+22) The experimental method used to measure the affinities.
+
+23) The SKEMPI version number.
+
+
+```{r}
+dat <- read.csv("~/Downloads/Ned/SKEMPI2/skempi_v2.csv", sep = ';', header = T)
+```
+
+```{r}
+table(unlist(strsplit(dat$iMutation_Location.s., ',')))
+
+# COR  INT  RIM  SUP  SUR 
+# 4599 1152 2687 1615 2271 
+```
+
+### Definitions
+
+* https://www.sciencedirect.com/science/article/pii/S0022283610010168
+
+1. `COR` - CORE
+2. `INT` - INTERIOR
+3. `RIM` - RIM
+4. `SUP` - SUPPORT
+5. `SUR` - SURFACE
+
+
+```
+| Code    | Name         | Definition                                                                                                                                                                                                                                 |
+| ------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **COR** | **Core**     | Residues that are **mostly solvent exposed in the unbound state**, but become **buried upon complex formation**. These are the canonical interface residues that lose most of their accessible surface area when binding.                  |
+| **SUP** | **Support**  | Residues that are **already mostly buried before binding** and become **completely buried after binding**. They lie underneath the interface and structurally support the core rather than directly presenting an exposed binding surface. |
+| **RIM** | **Rim**      | Residues that remain **partially solvent exposed after binding**. They lie around the periphery of the interface and lose only part of their SASA upon complex formation.                                                                  |
+| **INT** | **Interior** | **Non-interface** residues that are buried within the protein core. Their solvent accessibility remains low both before and after binding.                                                                                                 |
+| **SUR** | **Surface**  | **Non-interface** residues that remain solvent exposed and do not participate in the binding interface.                                                                                                                                    |
+```
+
+Note: SASA = 
+
+```
+| Region   | Unbound SASA | Bound SASA               |
+| -------- | ------------ | ------------------------ |
+| CORE     | High         | Low (buried)             |
+| SUPPORT  | Low          | Essentially zero         |
+| RIM      | Moderate     | Moderate (still exposed) |
+| INTERIOR | Low          | Low                      |
+| SURFACE  | High         | High                     |
+```
+
+## Defining surface and interior regions
+
+A residue is usually considered buried if its relative accessible surface area (rASA) is below a cutoff value. Such a consideration may not seem to be biologically meaningful because the relative exposure of amino acids to the solvent is a continuous variable, not a discreet one. Nevertheless, two reasons motivate the definition of such discreet regions. The first reason is simplicity. It is indeed easier to compare a particular property (e.g., amino acid conservation) between two regions than according to a continuous variable.6, 8, 30, 34 The second reason that motivates the definition of discreet structural regions is given in the study of Tokuriki et al.,8 where they conducted a large-scale in silico analysis of protein stability changes after the introduction of mutations. In all the proteins studied, the resulting distribution of ΔΔG values could be decomposed into a sum of two Gaussians, where one corresponds to surface residues and the second corresponds to buried ones.
+
+This prompts the definition of two structural regions: the interior and the surface. Since it is known that amino acid composition differs greatly between these two regions, I aim at finding the rASA value that maximizes that difference, measured by the correlation of their amino acid frequency vectors. In order to ensure that the rASA value obtained is not strongly dependent on the data set used, this analysis is carried out on three data sets of proteins from Escherichia coli, Saccharomyces cerevisiae, and Homo sapiens containing 397, 196, and 701 proteins, respectively. Figure 1a shows that the composition between the surface and the interior is most different at a rASA value of ∼ 25% for all three organisms. Interestingly, this value is the same as that described by Tokuriki et al., which fits the bimodal distribution of the ΔΔG values that they observed.
+
+## Defining interface regions: Core, rim, and support
+
+This idea of surface and interior can also be applied to protein–protein interfaces. Bogan and Thorn noted that among residues participating in the interface, those that contribute most to binding energy are shielded from the solvent.29 They proposed a model where interfaces are made of a central desolvated region surrounded by energetically less important residues in contact with water. This was consistent with a model described in parallel—of interfaces made of a core of buried atoms surrounded by rings of accessible ones.26 In line with these descriptions, the core–rim model was proposed,25, 28 where residues containing only solvent-accessible atoms form the rim and the remaining residues, with at least one buried atom, form the core.
+
+This description can be extended using the rASA value of 25% determined above. Simply, if an interface residue (ΔASA > 0; Fig. 1b) has more than 25% rASA in the complexed state, it is counted at the rim, which thus represents the intersection between the surface and the interface. Other residues can be assigned either to the core or to an additional category that I call support. The support includes residues with less than 25% rASA in the uncomplexed state and is thus the intersection between the interior and the interface. The remaining residues form the interface core. In other words, support residues are already largely buried in the monomer and become more buried in the complex, rim residues are largely exposed in the monomer and remain exposed in the complex, but interface core residues shift from being exposed in the monomer  (> 25% rASA) to being buried in the complex (< 25% rASA).
+
+Thus, in the same manner as proteins can be decomposed into interior and surface, interfaces can be decomposed into interior (support), surface (rim), and an intermediate category, the interface core. The size of these three categories changes with the rASA value used to separate the interior and the surface (Fig. 1c; Fig. S1). The larger is the rASA value, the more residues are at the interior and the larger is the support. Interestingly, at a rASA   of 25%, the relative sizes of the three interface categories are comparable, and the size of the interface core is maximal. This is relevant to the prediction of protein–protein interaction sites, as interface core residues are expected to carry more “interface information” than the support or the rim. For example, amino acids at the support are expected to be hydrophobic, not necessarily because they contribute to the interface but simply because they are buried.
+Below, I compare further the properties of the core, rim, and support defined at a rASA   of 25%. Their contribution to the number of amino acids and buried accessible surface area (ASA) according to the total size of the interface is given in Fig. 1d. Importantly, all statistics are given per subunit. In terms of the number of amino acids, the core, rim, and support have comparable sizes. Looking at E. coli complexes, a linear regression shows an average of 1 core, 1 support, and 0.6 rim residue per 100 Å2 of interface. These numbers are identical for S. cerevisiae complexes and remain close (i.e., 1, 0.8, and 0.7) for H. sapiens complexes (Fig. S2). When the slope intercept is taken into account, a typical  1000-Å2 interface involves an average of ∼ 28 amino acids, with ∼ 10 amino acids forming the core, ∼ 8 amino acids forming the support, and ∼ 10 amino acids forming the rim.
+
+As noted previously,25, 28 the relative contributions are, however, quite different when considering the buried surface area, since the core alone buries twice more surface than the rim and the support together. An average core residue contributes 66–67 Å2, against 11–14 Å2 and 20–23 Å2 for the support and the rim, respectively (the ranges reflect the differences among species, which are small; Fig. S2). Interestingly, however, the intercept of the core is negative, and that of the rim is positive for all three species. Although a negative intercept is not biologically meaningful, it reflects that the core contribution becomes weaker among smaller interfaces. If one assumes that amino acids at the core contribute most of the binding free energy,29 this picture is consistent with the fact that the majority of transient interfaces bury less than ∼ 800 Å2 per subunit, a value around which the interface core contribution is moderate.
+
+## Metrics
+
+Consider the following:
+
+$$M_i = \text{median}_{a\neq \text{WT}_i} \Delta \Delta G_{i \rightarrow a} \quad (1)$$
+
+This is a measure of mutational damage relative to WT.
+
+$$Q_{i}(\tau) = \frac{\# \{ a : \Delta \Delta G_{i \rightarrow a} > \tau\}}{\# \{ a : \text{measured}\}}$$
+
+This is a measure of the fraction of tested substitutions that abolish or strongly weaken binding.
+
+$$W_i = \min_{a \neq WT_i} \Delta \Delta G_{i \rightarrow a}$$
+
+This is whether any compensating substitution preserves binding
+
+$$B_i = \max_{a \neq WT_i} \Delta \Delta G_{i \rightarrow a}$$
+
+This is the worst observed perturbation.
+
+Note that, for "native indespnsability," $Q_i$ and $M_i$ are probably the best relative to the single alanine effect. A specific anchor should have a large deleterious fraction across chemically diverse substitutions.
+
+## The Interface
+
+
+$$\text{Interface} = \{ \text{COR}, \text{RIM}, \text{SUP}\}$$
+
+### Hypothesis
+
+Anchor residues are a structural property of the native interface, so the immediate hypothesis is:
+
+$$P(\text{anchor}∣\text{CORE})>P(\text{anchor}∣\text{RIM})>P(\text{anchor}∣\text{SURFACE}),$$
+
+## Begin Work!
+
+```{r}
+dat <- read.csv("~/Downloads/Ned/SKEMPI2/skempi_v2.csv", sep = ';', header = T)
+```
+
+### Cleaning
+
+```{r}
+# Drop unknown columns
+dat <- dat[dat$Temperature != "",]
+# There are over 2000 (2351) "assumed" room temps
+# We will continue the assumption...
+dat$Temperature <- ifelse(dat$Temperature == "298(assumed)", 298, dat$Temperature)
+dat$Temperature <- as.numeric(dat$Temperature)
+```
+
+
+```{r}
+## ============================================================
+## Compute ΔG and ΔΔG values from SKEMPI-style affinity columns
+## Base R only
+## ============================================================
+
+## Replace `dat` below with the name of your SKEMPI data frame.
+
+## Gas constant in kcal mol^-1 K^-1
+R_kcal <- 8.314462618 / 4184
+
+## Confirm that the required columns are present
+required_columns <- c(
+    "Affinity_mut_parsed",
+    "Affinity_wt_parsed",
+    "Temperature"
+)
+
+missing_columns <- setdiff(required_columns, names(dat))
+
+if (length(missing_columns) > 0L) {
+    stop(
+        "Missing required column(s): ",
+        paste(missing_columns, collapse = ", ")
+    )
+}
+
+## Identify rows with valid numeric inputs
+valid_ddg <- with(
+    dat,
+    is.finite(Affinity_mut_parsed) &
+    is.finite(Affinity_wt_parsed) &
+    is.finite(Temperature) &
+    Affinity_mut_parsed > 0 &
+    Affinity_wt_parsed > 0 &
+    Temperature > 0
+)
+
+## Initialize output columns
+dat$dG_wt_kcal_mol  <- NA_real_
+dat$dG_mut_kcal_mol <- NA_real_
+dat$ddG_kcal_mol    <- NA_real_
+
+## Compute binding free energies:
+##
+## ΔG = RT ln(Kd)
+##
+## Temperature is assumed to already be in kelvin.
+dat$dG_wt_kcal_mol[valid_ddg] <- with(
+    dat[valid_ddg, , drop = FALSE],
+    R_kcal * Temperature * log(Affinity_wt_parsed)
+)
+
+dat$dG_mut_kcal_mol[valid_ddg] <- with(
+    dat[valid_ddg, , drop = FALSE],
+    R_kcal * Temperature * log(Affinity_mut_parsed)
+)
+
+## Compute mutation-induced change in binding free energy:
+##
+## ΔΔG = ΔG_mut - ΔG_wt
+##     = RT ln(Kd_mut / Kd_wt)
+##
+## Positive ΔΔG: weaker binding after mutation
+## Negative ΔΔG: stronger binding after mutation
+dat$ddG_kcal_mol[valid_ddg] <- with(
+    dat[valid_ddg, , drop = FALSE],
+    R_kcal * Temperature *
+        log(Affinity_mut_parsed / Affinity_wt_parsed)
+)
+
+## Optional consistency check:
+## The direct ΔΔG calculation should agree with ΔG_mut - ΔG_wt.
+dat$ddG_check_kcal_mol <- dat$dG_mut_kcal_mol -
+    dat$dG_wt_kcal_mol
+
+if (!isTRUE(all.equal(
+    dat$ddG_kcal_mol[valid_ddg],
+    dat$ddG_check_kcal_mol[valid_ddg],
+    tolerance = 1e-10,
+    check.attributes = FALSE
+))) {
+    warning("Direct ΔΔG values do not match ΔG_mut - ΔG_wt.")
+}
+
+## Optional: flag single and multiple mutants
+if ("Mutation.s._cleaned" %in% names(dat)) {
+    dat$is_single_mutant <- !grepl(
+        ",",
+        dat$Mutation.s._cleaned,
+        fixed = TRUE
+    )
+}
+
+## Optional: rank mutations within each protein complex
+## Highest rank corresponds to the most binding-disruptive mutation.
+if ("X.Pdb" %in% names(dat)) {
+    dat$ddG_rank_within_complex <- ave(
+        dat$ddG_kcal_mol,
+        dat$X.Pdb,
+        FUN = function(x) {
+            rank(-x, ties.method = "min", na.last = "keep")
+        }
+    )
+}
+
+## Select convenient columns for inspection
+display_columns <- intersect(
+    c(
+        "X.Pdb",
+        "Mutation.s._PDB",
+        "Mutation.s._cleaned",
+        "iMutation_Location.s.",
+        "Affinity_mut_parsed",
+        "Affinity_wt_parsed",
+        "Temperature",
+        "dG_wt_kcal_mol",
+        "dG_mut_kcal_mol",
+        "ddG_kcal_mol",
+        "ddG_rank_within_complex",
+        "is_single_mutant"
+    ),
+    names(dat)
+)
+
+## Display results sorted from largest to smallest ΔΔG
+result <- dat[
+    order(dat$ddG_kcal_mol, decreasing = TRUE, na.last = TRUE),
+    display_columns,
+    drop = FALSE
+]
+
+print(result, row.names = FALSE)
+
+## Optional: write the augmented data frame to disk
+## write.csv(
+##     dat,
+##     file = "SKEMPI_with_ddG.csv",
+##     row.names = FALSE
+## )
+```
+
+Useful heuristics:
+
+| ΔΔG (kcal/mol) | Typical Interpretation                          |
+| -------------: | ----------------------------------------------- |
+|            < 0 | Improved binding                                |
+|          0–0.5 | Within experimental noise / negligible          |
+|          0.5–1 | Small effect                                    |
+|            1–2 | Moderate effect                                 |
+|            2–4 | Strong effect                                   |
+|            > 4 | Very strong / likely hotspot (anchor candidate) |
+
+
+Our focus is on `COR, RIM, SUP`:
+
+```{r}
+dat <- result[grepl("COR|RIM|SUP", result$iMutation_Location.s.),]
+```
+
+We want single mutants for now.
+
+Note the notation: `YA72N`
+
+1. `Y` = Tyrosine
+2. `A` is Chain A
+3. `72` is Residue number
+4. `N` is Asparagine
+
+```{r}
+result <- dat[!grepl(",",dat$Mutation.s._cleaned),]
+dat <- result
+```
+
+Parse the single mutant info:
+
+```{r}
+dat$WT_AA     <- substr(dat$Mutation.s._cleaned, 1, 1)
+dat$Chain     <- substr(dat$Mutation.s._cleaned, 2, 2)
+dat$Mut_AA    <- substr(dat$Mutation.s._cleaned,
+                        nchar(dat$Mutation.s._cleaned),
+                        nchar(dat$Mutation.s._cleaned))
+
+dat$Residue <- as.numeric(gsub(
+    "[A-Z]", "",
+    substr(dat$Mutation.s._cleaned,
+           3,
+           nchar(dat$Mutation.s._cleaned) - 1)
+))
+```
+
+```{r}
+dat$pdb <- substr(dat$X.Pdb, 1,4)
+```
+
+For what remains, we need to make sure they're a protein-ligand system (I care not if they're dimers).
+
+## PDB Parsing
+
+Note on cleaning:
+
+1. https://www.wwpdb.org/data/ccd
+
+```{r}
+library(bio3d)
+
+path <- "~/Downloads/Ned/SKEMPI2/PDBs"
+
+pdb_files <- list.files(
+    path = path,
+    pattern = "\\.pdb$",
+    full.names = TRUE
+)
+
+# Continue testing on only the first ten files
+#pdb_files <- head(pdb_files, 10)
+
+
+# ============================================================
+# Expected non-hydrogen atoms for the 20 standard amino acids
+#
+# OXT is intentionally omitted because it is terminal-specific.
+# ============================================================
+
+expected_heavy_atoms <- list(
+    ALA = c("N", "CA", "C", "O", "CB"),
+    ARG = c("N", "CA", "C", "O", "CB", "CG", "CD",
+            "NE", "CZ", "NH1", "NH2"),
+    ASN = c("N", "CA", "C", "O", "CB", "CG", "OD1", "ND2"),
+    ASP = c("N", "CA", "C", "O", "CB", "CG", "OD1", "OD2"),
+    CYS = c("N", "CA", "C", "O", "CB", "SG"),
+    GLN = c("N", "CA", "C", "O", "CB", "CG", "CD", "OE1", "NE2"),
+    GLU = c("N", "CA", "C", "O", "CB", "CG", "CD", "OE1", "OE2"),
+    GLY = c("N", "CA", "C", "O"),
+    HIS = c("N", "CA", "C", "O", "CB", "CG", "ND1", "CD2",
+            "CE1", "NE2"),
+    ILE = c("N", "CA", "C", "O", "CB", "CG1", "CG2", "CD1"),
+    LEU = c("N", "CA", "C", "O", "CB", "CG", "CD1", "CD2"),
+    LYS = c("N", "CA", "C", "O", "CB", "CG", "CD", "CE", "NZ"),
+    MET = c("N", "CA", "C", "O", "CB", "CG", "SD", "CE"),
+    PHE = c("N", "CA", "C", "O", "CB", "CG", "CD1", "CD2",
+            "CE1", "CE2", "CZ"),
+    PRO = c("N", "CA", "C", "O", "CB", "CG", "CD"),
+    SER = c("N", "CA", "C", "O", "CB", "OG"),
+    THR = c("N", "CA", "C", "O", "CB", "OG1", "CG2"),
+    TRP = c("N", "CA", "C", "O", "CB", "CG", "CD1", "CD2",
+            "NE1", "CE2", "CE3", "CZ2", "CZ3", "CH2"),
+    TYR = c("N", "CA", "C", "O", "CB", "CG", "CD1", "CD2",
+            "CE1", "CE2", "CZ", "OH"),
+    VAL = c("N", "CA", "C", "O", "CB", "CG1", "CG2")
+)
+
+
+# ============================================================
+# Helper: format residue identifier
+# ============================================================
+
+residue_label <- function(chain, resno, insert = "", resid = NULL) {
+
+    chain[is.na(chain) | chain == ""] <- "_"
+    insert[is.na(insert)] <- ""
+
+    label <- paste0(chain, ":", resno, insert)
+
+    if (!is.null(resid)) {
+        label <- paste0(label, ":", resid)
+    }
+
+    label
+}
+
+
+# ============================================================
+# Results container
+# ============================================================
+
+result_rows <- vector("list", length(pdb_files))
+
+
+# ============================================================
+# Process the first ten PDBs
+# ============================================================
+
+for (i in seq_along(pdb_files)) {
+
+    pdb_file <- pdb_files[i]
+
+    pdb <- read.pdb(
+        pdb_file,
+        rm.alt = TRUE,
+        rm.insert = FALSE,
+        verbose = FALSE
+    )
+
+    atoms <- pdb$atom
+
+    # Some Bio3D/PDB combinations may lack an insertion-code column.
+    if (!"insert" %in% names(atoms)) {
+        atoms$insert <- ""
+    }
+
+    atoms$insert[is.na(atoms$insert)] <- ""
+    atoms$chain[is.na(atoms$chain) | atoms$chain == ""] <- "_"
+
+    # --------------------------------------------------------
+    # 1. Protein ATOM records and chain count
+    # --------------------------------------------------------
+
+    protein <- atoms[
+        atoms$type == "ATOM",
+        ,
+        drop = FALSE
+    ]
+
+    chains <- sort(unique(protein$chain))
+
+
+    # --------------------------------------------------------
+    # 2. Phosphorylated residues
+    #
+    # Search all records, including HETATM.
+    # SEP = phosphoserine
+    # TPO = phosphothreonine
+    # PTR = phosphotyrosine
+    # --------------------------------------------------------
+
+    phospho_codes <- c("SEP", "TPO", "PTR")
+
+    phospho_atoms <- atoms[
+        atoms$resid %in% phospho_codes,
+        ,
+        drop = FALSE
+    ]
+
+    if (nrow(phospho_atoms) > 0L) {
+
+        phospho_key <- paste(
+            phospho_atoms$chain,
+            phospho_atoms$resno,
+            phospho_atoms$insert,
+            phospho_atoms$resid,
+            sep = ":"
+        )
+
+        phospho_first <- !duplicated(phospho_key)
+
+        phospho_residues <- residue_label(
+            chain = phospho_atoms$chain[phospho_first],
+            resno = phospho_atoms$resno[phospho_first],
+            insert = phospho_atoms$insert[phospho_first],
+            resid = phospho_atoms$resid[phospho_first]
+        )
+
+    } else {
+        phospho_residues <- character(0)
+    }
+
+
+    # --------------------------------------------------------
+    # 3. Missing internal residue numbers
+    #
+    # This checks for numbering gaps between the first and
+    # last observed coordinate residue in each chain.
+    # Missing termini are therefore ignored.
+    # --------------------------------------------------------
+
+    residue_key <- paste(
+        protein$chain,
+        protein$resno,
+        protein$insert,
+        sep = ":"
+    )
+
+    protein_residues <- protein[
+        !duplicated(residue_key),
+        c("chain", "resno", "insert", "resid"),
+        drop = FALSE
+    ]
+
+    missing_internal <- character(0)
+
+    for (chain_id in chains) {
+
+        chain_resnos <- sort(unique(
+            protein_residues$resno[
+                protein_residues$chain == chain_id
+            ]
+        ))
+
+        if (length(chain_resnos) >= 2L) {
+
+            expected_numbers <- seq.int(
+                min(chain_resnos),
+                max(chain_resnos)
+            )
+
+            missing_numbers <- setdiff(
+                expected_numbers,
+                chain_resnos
+            )
+
+            if (length(missing_numbers) > 0L) {
+                missing_internal <- c(
+                    missing_internal,
+                    paste0(chain_id, ":", missing_numbers)
+                )
+            }
+        }
+    }
+
+
+    # --------------------------------------------------------
+    # 4. Missing non-hydrogen atoms
+    #
+    # Only the 20 standard amino-acid residue names are checked.
+    # Modified residues are not silently interpreted as their
+    # unmodified parents.
+    # --------------------------------------------------------
+
+    standard_atoms <- protein[
+        protein$resid %in% names(expected_heavy_atoms),
+        ,
+        drop = FALSE
+    ]
+
+    standard_key <- paste(
+        standard_atoms$chain,
+        standard_atoms$resno,
+        standard_atoms$insert,
+        standard_atoms$resid,
+        sep = ":"
+    )
+
+    atom_names_by_residue <- split(
+        standard_atoms$elety,
+        standard_key
+    )
+
+    missing_atom_reports <- character(0)
+
+    for (key in names(atom_names_by_residue)) {
+
+        fields <- strsplit(key, ":", fixed = TRUE)[[1]]
+
+        chain_id <- fields[1]
+        resno <- fields[2]
+        insert <- fields[3]
+        residue_name <- fields[4]
+
+        observed_atoms <- unique(atom_names_by_residue[[key]])
+        required_atoms <- expected_heavy_atoms[[residue_name]]
+
+        missing_atoms <- setdiff(
+            required_atoms,
+            observed_atoms
+        )
+
+        if (length(missing_atoms) > 0L) {
+
+            residue_id <- paste0(
+                chain_id,
+                ":",
+                resno,
+                insert,
+                ":",
+                residue_name
+            )
+
+            missing_atom_reports <- c(
+                missing_atom_reports,
+                paste0(
+                    residue_id,
+                    "[",
+                    paste(missing_atoms, collapse = ","),
+                    "]"
+                )
+            )
+        }
+    }
+
+
+    # --------------------------------------------------------
+    # Store one row for this PDB
+    # --------------------------------------------------------
+
+    result_rows[[i]] <- data.frame(
+        pdb = tools::file_path_sans_ext(basename(pdb_file)),
+        n_protein_atoms = nrow(protein),
+        n_chains = length(chains),
+        chains = paste(chains, collapse = ","),
+
+        has_phosphorylated_residues =
+            length(phospho_residues) > 0L,
+        n_phosphorylated_residues =
+            length(phospho_residues),
+        phosphorylated_residues =
+            paste(phospho_residues, collapse = ";"),
+
+        has_missing_internal_residues =
+            length(missing_internal) > 0L,
+        n_missing_internal_residues =
+            length(missing_internal),
+        missing_internal_residues =
+            paste(missing_internal, collapse = ";"),
+
+        has_missing_heavy_atoms =
+            length(missing_atom_reports) > 0L,
+        n_residues_with_missing_heavy_atoms =
+            length(missing_atom_reports),
+        residues_with_missing_heavy_atoms =
+            paste(missing_atom_reports, collapse = ";"),
+
+        stringsAsFactors = FALSE
+    )
+}
+
+
+results <- do.call(rbind, result_rows)
+rownames(results) <- NULL
+```
+
+## Merge
+
+```{r}
+tmp <- merge(dat, results, by = "pdb", all.x = T)
+```
+
+## More Cleaning
+
+### Only two chains
+
+```{r}
+nrow(tmp)
+tmp <- tmp[tmp$n_chains == 2,]
+nrow(tmp)
+```
+
+### No missing heavy atoms
+
+```{r}
+nrow(tmp)
+tmp <- tmp[tmp$has_missing_heavy_atoms == F,]
+nrow(tmp)
+```
+
+## Copying over files to new directory
+
+```{r}
+source_dir <- "~/Downloads/Ned/SKEMPI2/PDBs"
+dest_dir   <- "~/Downloads/Ned/SKEMPI2/pdbs_for_analysis"
+
+# Create destination directory if it doesn't already exist
+dir.create(dest_dir, showWarnings = FALSE, recursive = TRUE)
+
+# Full paths to the source files
+source_files <- file.path(source_dir, paste0(tmp$pdb, ".pdb"))
+
+# Copy only those that actually exist
+file.copy(
+    from = source_files[file.exists(source_files)],
+    to = dest_dir,
+    overwrite = TRUE
+)
+
+cat(
+    length(list.files(
+    dest_dir,
+    pattern = "\\.pdb$",
+    ignore.case = TRUE
+    )),
+    "PDBs copied to",
+    dest_dir,
+    "\n"
+)
+```
+
+
+```{r}
+tmp <- tmp[duplicated(tmp$pdb) | duplicated(tmp$pdb, fromLast = TRUE), ]
+```
+
+### Any missing?
+
+```{r}
+missing <- tmp$pdb[!file.exists(source_files)]
+
+if (length(missing) > 0) {
+    cat("Missing PDBs:\n")
+    print(missing)
+}
+```
+
+
+## Final check (priority)
+
+```{r}
+tmp <- tmp[order(tmp$pdb,tmp$ddG_kcal_mol, decreasing = T),]
+write.csv(tmp, file = "~/Downloads/Ned/SKEMPI2/SKEMPI2_processed18Jun26.csv", row.names = F)
+```
+
+```{r}
+tmp <- read.csv("~/Downloads/Ned/SKEMPI2/SKEMPI2_processed18Jun26.csv", header = T, stringsAsFactors = F)
+```
