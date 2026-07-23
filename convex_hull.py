@@ -1,79 +1,74 @@
-import sys
 import os
+import sys
+
 from Find_Doublets import SCOPE, rank_flex_overlap
 
-# Prefer adding the CCKStar package directory directly so internal imports like
-# `from Make_Convex_Hull import ...` work when importing modules.
-# some interactive environments (REPL, Python -c) don't define __file__;
-# fall back to the current working directory in that case.
 
-"""
-try:
-    base_dir = os.path.dirname(__file__)
-except NameError:
-    base_dir = os.getcwd()
-repo_root = os.path.abspath(os.path.join(base_dir, ".."))
-cck_dir = os.path.join(repo_root, "src", "main", "python", "CCKStar")
-py_src_dir = os.path.join(repo_root, "src", "main", "python")
+def run_convex_hull(file_name, outfolder="pdb_hulls"):
+    """Run the convex-hull contact scan and return contacts + interchain."""
+    os.makedirs(outfolder, exist_ok=True)
 
-if cck_dir not in sys.path:
-    sys.path.insert(0, cck_dir)
+    contacts, interchain = SCOPE(
+        file_name,
+        outfolder,
+        "B",                      # design chain ID
+        ["TRP"],                 # design_AA_type (example)
+        True,                     # savePDB
+        "L",                      # design_chirality
+        []                        # fixed_identity
+    )
+    return contacts, interchain
 
-try:
-    # import the module as the package author expects (local imports)
-    from Find_Doublets import SCOPE
-except ModuleNotFoundError:
-    # fallback: add the broader python path and try package import
-    if py_src_dir not in sys.path:
-        sys.path.insert(0, py_src_dir)
-    from CCKStar.Find_Doublets import SCOPE
-"""
 
-if len(sys.argv) < 2:
-    print("Usage: python3 convex_hull.py <file_name>")
-    sys.exit(1)
+def build_experiment_rows(interchain):
+    """Translate the interchain residue lists into IAS experiment rows."""
+    rows = [{
+        "mode": "baseline",
+        "protein_flex_residue": "",
+        "ligand_flex_residue": "",
+    }]
 
-file_name = sys.argv[1]
+    for ligand_idx, nearby_proteins in enumerate(interchain):
+        ligand_residue = f"B{ligand_idx + 1}"
+        for protein_idx in nearby_proteins:
+            protein_residue = f"A{protein_idx + 1}"
+            rows.append({
+                "mode": "single-protein-flex",
+                "protein_flex_residue": protein_residue,
+                "ligand_flex_residue": ligand_residue,
+            })
 
-# ensure output folder exists so SCOPE can write hull PDBs
-outfolder = "pdb_hulls"
-os.makedirs(outfolder, exist_ok=True)
+    return rows
 
-three_letter_amino_acid_codes = [
-    "ALA", "ARG", "ASN", "ASP", "CYS",
-    "GLN", "GLU", "GLY", "HIS", "ILE",
-    "LEU", "LYS", "MET", "PHE", "PRO",
-    "SER", "THR", "TRP", "TYR", "VAL"
-]
 
-## We want to iterate over each of the amino acids in the list 
-## and call SCOPE for each one, saving the results to a file.
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: python3 convex_hull.py <file_name>")
+        sys.exit(1)
 
-contacts, interchain = SCOPE(
-    file_name,
-    "pdb_hulls",
-    "B",                      # design chain ID
-    ['TRP'],                  # design_AA_type (example)
-    True,                      # savePDB
-    "L",                      # design_chirality
-    []                         # fixed_identity
-)
-print(contacts)
+    file_name = sys.argv[1]
+    contacts, interchain = run_convex_hull(file_name)
 
-print(interchain)
+    print(contacts)
+    print(interchain)
 
-for obj in interchain:
-    print(obj)
+    for obj in interchain:
+        print(obj)
 
-# # optional: order the flexible residues by volume overlap with design chain hulls
-# # this is useful for prioritizing flexible residues over a large search space
-# # returns: {design res, target res : cubic angstrom overlap}
-#flex_order = rank_flex_overlap('B', 
-#                               'A', 
-#                               contacts, 
-#                               interchain, 
-#                               'pdb_hulls')
+    # # optional: order the flexible residues by volume overlap with design chain hulls
+    # # this is useful for prioritizing flexible residues over a large search space
+    # # returns: {design res, target res : cubic angstrom overlap}
+    # flex_order = rank_flex_overlap(
+    #     "B",
+    #     "A",
+    #     contacts,
+    #     interchain,
+    #     "pdb_hulls",
+    # )
+    # print("Printing Flex Order:")
+    # print(flex_order)
 
-#print("Printing Flex Order:")
-#print(flex_order)
+
+if __name__ == "__main__":
+    main()
 

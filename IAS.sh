@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+
 if [[ $# -lt 1 ]]; then
     echo "Usage: $0 <file_name> [protein_flexible_residue] [ligand_residue]"
     exit 1
@@ -11,6 +13,6 @@ FILENAME="${1:-}"
 PROT_FLEX="${2:-}"
 LIG_RESIDUE="${3:-}"
 
-python3 IAS.py "$FILENAME" "$PROT_FLEX" "$LIG_RESIDUE"
+"$PYTHON_BIN" IAS.py "$FILENAME" "$PROT_FLEX" "$LIG_RESIDUE"
 
 echo "Completed!"
