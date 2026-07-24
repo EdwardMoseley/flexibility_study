@@ -389,8 +389,9 @@ def find_interchain_intersects(hull1: list, hull2: list, chainIDs):
         print("Chain %s Residue %s intersects with Chain %s residue(s) %s" % (chainIDs[0], h1.resid,
                                                                               chainIDs[1], intersects))
 
-        if intersects:
-            all_intersects.append(intersects)
+        # Keep one entry per design residue so callers can safely index by
+        # ligand residue position (0-indexed list by residue order).
+        all_intersects.append(intersects)
 
     return all_intersects
 

@@ -5,10 +5,18 @@
 #SBATCH --partition=compsci
 #SBATCH --mem=8G
 #SBATCH --cpus-per-task=1
+#SBATCH --chdir=/home/users/etm33/src/OSPREY3/flexibility_study
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -n "${SLURM_SUBMIT_DIR:-}" ]; then
+  SCRIPT_DIR="$SLURM_SUBMIT_DIR"
+else
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+
+cd "$SCRIPT_DIR"
+
 INPUT_DIR="$SCRIPT_DIR/SKEMPI2/pdbs_for_analysis"
 OUTPUT_DIR="$SCRIPT_DIR/SKEMPI2/cleaned_pdbs_for_analysis"
 LOG_DIR="$SCRIPT_DIR/slurm_logs"
