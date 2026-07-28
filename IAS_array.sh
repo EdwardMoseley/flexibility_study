@@ -2,6 +2,7 @@
 #SBATCH --mem=64GB
 #SBATCH --cpus-per-task=1
 #SBATCH --partition=compsci
+#SBATCH --time=4-00:00:00
 
 ## Call with:
 # sbatch --array=1-4%1 IAS_array.sh manifests/example_manifest.csv

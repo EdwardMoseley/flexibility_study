@@ -25,6 +25,7 @@ Examples:
 
 Notes:
 	- Simple mode uses SKEMPI2/SKEMPI2_processed18Jun26.csv by default.
+	- This script must be launched with sbatch.
 	- Override defaults with env vars:
 			SKEMPI_SOURCE_CSV
 			SKEMPI_CLEANED_PDB_DIR
@@ -52,6 +53,12 @@ shift
 if [[ "$SELECTOR" == "-h" || "$SELECTOR" == "--help" ]]; then
 	usage
 	exit 0
+fi
+
+if [[ -z "${SLURM_JOB_ID:-}" ]]; then
+	echo "submit_manifests.sh must be launched via sbatch." >&2
+	echo "Example: sbatch submit_manifests.sh all" >&2
+	exit 1
 fi
 
 if ! is_selector "$SELECTOR"; then

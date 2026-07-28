@@ -3,7 +3,7 @@
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: sbatch submit_ias_array.sh <manifest.csv> [array_limit] [--dry-run] [--parsable]" >&2
+    echo "Usage: sbatch submit_ias_array.sh <manifest.csv> [array_limit] [--dry-run] [--parsable] [--time TIME]" >&2
     exit 1
 fi
 
@@ -13,6 +13,7 @@ shift
 array_limit=4
 dry_run=0
 parsable=0
+time_limit="${IAS_TIME_LIMIT:-4-00:00:00}"
 
 if [[ $# -gt 0 && "${1:-}" =~ ^[0-9]+$ ]]; then
     array_limit="$1"
@@ -28,6 +29,10 @@ while [[ $# -gt 0 ]]; do
         --parsable)
             parsable=1
             shift
+            ;;
+        --time)
+            time_limit="$2"
+            shift 2
             ;;
         *)
             echo "Unknown arg: $1" >&2
@@ -50,10 +55,11 @@ fi
 script_dir="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 array_expr="1-${rows}%${array_limit}"
 
-cmd=(sbatch --array="$array_expr" "$script_dir/IAS_array.sh" "$manifest")
+cmd=(sbatch --time="$time_limit" --array="$array_expr" "$script_dir/IAS_array.sh" "$manifest")
 
 if [[ "$dry_run" -eq 1 ]]; then
     echo "Dry-run: would submit IAS array for $manifest with $rows row(s)"
+    echo "Time limit: $time_limit"
     printf 'Command: '
     printf '%q ' "${cmd[@]}"
     echo
