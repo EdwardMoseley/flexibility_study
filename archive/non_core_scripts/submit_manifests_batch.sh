@@ -9,13 +9,10 @@
 
 set -euo pipefail
 
-if [ $# -lt 1 ]; then
-  echo "Usage: sbatch submit_manifests_batch.sh /path/to/cleaned_pdb_dir [--limit N] [--dry-run]" >&2
+if [ $# -lt 2 ]; then
+  echo "Usage: sbatch submit_manifests_batch.sh <skempi_csv> <output_dir> [pipeline options]" >&2
   exit 1
 fi
-
-PDB_DIR="$1"
-shift || true
 
 # ensure conda environment available on compute node
 if [ -f "$HOME/.bashrc" ]; then
@@ -27,7 +24,7 @@ if command -v conda >/dev/null 2>&1; then
   conda activate osprey-jdk17 2>/dev/null || true
 fi
 
-echo "Building manifests for $PDB_DIR (inside SLURM job)"
-./submit_manifests.sh "$PDB_DIR" "$@"
+echo "Running manifest pipeline inside SLURM job"
+./submit_manifests.sh "$@"
 
 echo "Batch builder finished"

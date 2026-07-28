@@ -1,5 +1,11 @@
 import os
 import sys
+from pathlib import Path
+
+script_dir = Path(__file__).resolve().parent
+archive_dir = script_dir / "archive" / "non_core_scripts"
+if str(archive_dir) not in sys.path:
+    sys.path.insert(0, str(archive_dir))
 
 from Find_Doublets import SCOPE, rank_flex_overlap
 

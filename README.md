@@ -18,6 +18,21 @@ Pipeline intent:
 
 All compute execution is done through sbatch.
 
+## Active Core Scripts
+
+The current maintained workflow uses only these top-level scripts:
+
+- submit_manifests.sh
+- run_manifest_pipeline.sh
+- build_csv_manifests.py
+- submit_ias_array.sh
+- IAS_array.sh
+- IAS.sh
+- IAS.py
+- convex_hull.py
+
+Other historical/alternate helpers were moved to archive/non_core_scripts/.
+
 ## Key Inputs
 
 Primary SKEMPI input:
@@ -42,9 +57,9 @@ Mutation and manifest generation:
 	- Calls convex_hull.py and parses per-residue neighbor lines.
 	- Emits per-mutation manifests and aggregated manifest.
 
-Pilot selection helper:
+Archived pilot selection helper:
 
-- select_skempi_pilot.py
+- archive/non_core_scripts/select_skempi_pilot.py
 	- Selects one PDB with at least N chain-specific mutations.
 	- Writes a subset CSV for pilot execution.
 	- Supports explicit --pdb selection.
@@ -98,9 +113,92 @@ Notes:
 - TSV basenames are unique by mutation residue plus ligand/protein flexibility labels.
 - seq*.pdb files are deleted at the end of each task by IAS_array.sh.
 
+## One-Command SLURM Orchestrator
+
+Use the top-level orchestrator to build manifests and submit IAS arrays in one flow:
+
+```bash
+sbatch --wait \
+	--partition=compsci --mem=2G --cpus-per-task=1 \
+	--output=logs/pipeline_%j.out --error=logs/pipeline_%j.err \
+	--wrap="cd /home/users/etm33/src/OSPREY3/flexibility_study && \
+		bash run_manifest_pipeline.sh \
+			tmp/pilot_check/subset.csv \
+			tmp/pilot_check/manifests \
+			--array-limit 4"
+```
+
+Dry-run mode prints the exact `sbatch` commands without executing:
+
+```bash
+bash run_manifest_pipeline.sh \
+	tmp/pilot_check/subset.csv \
+	tmp/pilot_check/manifests \
+	--array-limit 4 \
+	--dry-run
+```
+
+Job-id capture:
+
+- The orchestrator prints the build helper job id and submit helper job id.
+- It also attempts to extract the IAS array job id and prints it in the summary.
+- Check logs under `logs/manifest_build_<jobid>.*` and `logs/manifest_submit_<jobid>.*`.
+
 ## Recommended Invocation (Pilot on One PDB)
 
 Run these from this folder.
+
+### Fast Path (New Simplified Entry)
+
+Use `submit_manifests.sh` as the single entrypoint. It handles subset selection, manifest build, and array submission.
+
+You can launch by selector directly, without manually building subset CSVs.
+
+Selector syntax:
+
+- `1` -> first observation row in `SKEMPI2_processed18Jun26.csv`
+- `2` -> second observation row
+- `1:2` -> inclusive range
+- `pdb:5XCO` -> all rows whose `pdb` column matches `5XCO`
+- `all` -> all rows
+
+Examples:
+
+```bash
+sbatch submit_manifests.sh 1
+sbatch submit_manifests.sh 2 4
+sbatch submit_manifests.sh 1:2 8
+sbatch submit_manifests.sh pdb:5XCO 9
+sbatch submit_manifests.sh all 16
+```
+
+Dry-run example (prints exact commands and output locations):
+
+```bash
+bash submit_manifests.sh 1:2 8 --dry-run
+```
+
+Notes:
+
+- Argument 2 is optional array concurrency (default `4`).
+- Selector mode writes derived inputs under `tmp/observation_batches/<selector>/`.
+- The supporting pipeline entrypoint is [flexibility_study/run_manifest_pipeline.sh](flexibility_study/run_manifest_pipeline.sh), which is used internally by `submit_manifests.sh` to build manifests and submit the SLURM array.
+
+Output locations for selector mode:
+
+- Subset CSV: `tmp/observation_batches/<selector>/subset.csv`
+- Manifest directory: `tmp/observation_batches/<selector>/manifests/`
+- Aggregated manifest: `tmp/observation_batches/<selector>/manifests/all_experiments.csv`
+- Pipeline logs: `logs/manifest_build_<jobid>.out|.err` and `logs/manifest_submit_<jobid>.out|.err`
+- Array task logs: `logs/<pdb_basename>_<jobid>_<array_task>.out|.err`
+- Final TSV results: `results/<pdb_basename>/<mutation_residue>/*.tsv`
+- Per-mutation copied task logs: `results/<pdb_basename>/<mutation_residue>/task_<jobid>_<array_task>.out|.err`
+- Convex-hull logs used for manifest generation: `results/<pdb_basename>/<mutation_residue>/convex_hull.out|.err`
+- Source manifest for that PDB/mutation run: `results/<pdb_basename>/<mutation_residue>/source_manifest.csv`
+
+Tip:
+
+- Run wrapper commands from `flexibility_study/` and prefer absolute `--output/--error` paths in `sbatch` to avoid writing into nested paths like `logs/logs/` when the current directory is already `logs/`.
 
 1) Create one-PDB pilot subset CSV (auto-select, excluding known entries):
 
@@ -109,7 +207,7 @@ sbatch --wait \
 	--output=logs/pilot_select_%j.out \
 	--error=logs/pilot_select_%j.err \
 	--partition=compsci --mem=4G --cpus-per-task=1 \
-	--wrap="/home/users/etm33/miniconda3/envs/osprey-jdk17/bin/python select_skempi_pilot.py \
+	--wrap="/home/users/etm33/miniconda3/envs/osprey-jdk17/bin/python archive/non_core_scripts/select_skempi_pilot.py \
 		SKEMPI2/SKEMPI2_processed18Jun26.csv \
 		tmp/pilot_check/subset.csv \
 		--chain B --min-mutations 2 --mutations-per-pdb 2 \
@@ -123,7 +221,7 @@ sbatch --wait \
 	--output=logs/pilot_select_1emv_%j.out \
 	--error=logs/pilot_select_1emv_%j.err \
 	--partition=compsci --mem=4G --cpus-per-task=1 \
-	--wrap="/home/users/etm33/miniconda3/envs/osprey-jdk17/bin/python select_skempi_pilot.py \
+	--wrap="/home/users/etm33/miniconda3/envs/osprey-jdk17/bin/python archive/non_core_scripts/select_skempi_pilot.py \
 		SKEMPI2/SKEMPI2_processed18Jun26.csv \
 		tmp/pilot_1emv/subset.csv \
 		--pdb 1EMV --chain B --min-mutations 2 --mutations-per-pdb 2"
@@ -178,7 +276,8 @@ Functional updates made in this workflow:
 7. Added TSV collection into centralized results folders.
 8. Added post-run deletion of seq*.pdb files.
 9. Updated run-tag naming to avoid duplicate TSV basenames.
-10. Added pilot selection script (select_skempi_pilot.py).
+10. Added pilot selection script (now archived at archive/non_core_scripts/select_skempi_pilot.py).
+11. Removed legacy run_ias_task.sh path; submit_manifests.sh now delegates to run_manifest_pipeline.sh.
 
 ## Troubleshooting Notes
 
@@ -193,6 +292,6 @@ Functional updates made in this workflow:
 
 After pilot validation:
 
-1. Increase mutations-per-pdb in select_skempi_pilot.py or feed broader CSV input.
+1. Increase mutations-per-pdb in archive/non_core_scripts/select_skempi_pilot.py or feed broader CSV input.
 2. Build aggregated manifest.
 3. Submit with submit_ias_array.sh using a tuned concurrency limit.

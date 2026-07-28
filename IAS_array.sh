@@ -92,3 +92,7 @@ if (( ${#seq_files[@]} > 0 )); then
     rm -f -- "${seq_files[@]}"
     echo "Deleted ${#seq_files[@]} seq*.pdb file(s) from $task_dir"
 fi
+
+# Keep task logs alongside results for this PDB/mutation to simplify troubleshooting.
+cp -f "$stdout_log" "$results_dir/task_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.out"
+cp -f "$stderr_log" "$results_dir/task_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}.err"

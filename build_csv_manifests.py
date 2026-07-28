@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 import re
+import shutil
 
 
 def resolve_pdb_path(pdb_id, base_dir, cleaned_pdb_dir=None):
@@ -137,6 +138,33 @@ def parse_convex_hull_neighbor_map(stdout_text, design_chain):
     return residue_map
 
 
+def mutation_residue_label(chain, residue_number):
+    return f"{chain}{residue_number}"
+
+
+def results_dir_for_entry(base_dir, pdb_path, mutation_residue):
+    pdb_base = Path(pdb_path).name
+    if pdb_base.lower().endswith(".pdb"):
+        pdb_base = pdb_base[:-4]
+    safe_mutation = re.sub(r"[^A-Za-z0-9_.-]", "_", mutation_residue)
+    return Path(base_dir) / "results" / pdb_base / safe_mutation
+
+
+def write_convex_hull_logs(base_dir, pdb_path, mutation_residue, stdout_text, stderr_text):
+    out_dir = results_dir_for_entry(base_dir, pdb_path, mutation_residue)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "convex_hull.out").write_text(stdout_text or "", encoding="utf-8")
+    (out_dir / "convex_hull.err").write_text(stderr_text or "", encoding="utf-8")
+
+
+def copy_manifest_to_results(base_dir, pdb_path, mutation_residue, manifest_path):
+    out_dir = results_dir_for_entry(base_dir, pdb_path, mutation_residue)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = Path(manifest_path)
+    shutil.copyfile(manifest_path, out_dir / manifest_path.name)
+    shutil.copyfile(manifest_path, out_dir / "source_manifest.csv")
+
+
 def run_convex_hull_neighbor_map(pdb_path, design_chain):
     script_path = Path(__file__).with_name("convex_hull.py")
     cmd = [sys.executable, str(script_path), str(pdb_path), str(design_chain)]
@@ -148,7 +176,7 @@ def run_convex_hull_neighbor_map(pdb_path, design_chain):
     if not residue_map:
         raise RuntimeError("No per-residue neighbor lists were parsed from convex_hull.py output")
 
-    return residue_map
+    return residue_map, result.stdout, result.stderr
 
 
 def build_all_manifests(csv_path, output_dir, base_dir=None, limit=None, cleaned_pdb_dir=None):
@@ -198,6 +226,7 @@ def build_all_manifests(csv_path, output_dir, base_dir=None, limit=None, cleaned
             print(f"Skipping {pdb_id}: no local PDB file found")
             continue
 
+        mutation_residue = mutation_residue_label(mutation_chain, mutation_residue_number)
         cache_key = (pdb_path, mutation_chain)
         if cache_key not in cache:
             try:
@@ -206,9 +235,12 @@ def build_all_manifests(csv_path, output_dir, base_dir=None, limit=None, cleaned
                 print(f"Skipping {pdb_id}: convex-hull failed ({type(exc).__name__}: {exc})")
                 cache[cache_key] = None
 
-        residue_map = cache.get(cache_key)
-        if residue_map is None:
+        cache_value = cache.get(cache_key)
+        if cache_value is None:
             continue
+
+        residue_map, convex_stdout, convex_stderr = cache_value
+        write_convex_hull_logs(base_dir, pdb_path, mutation_residue, convex_stdout, convex_stderr)
 
         nearby_protein_residues = residue_map.get(mutation_residue_number, [])
 
@@ -225,6 +257,8 @@ def build_all_manifests(csv_path, output_dir, base_dir=None, limit=None, cleaned
             writer.writeheader()
             for manifest_row in manifest_rows:
                 writer.writerow(manifest_row)
+
+        copy_manifest_to_results(base_dir, pdb_path, mutation_residue, manifest_path)
 
         written.append((pdb_id, manifest_path, len(manifest_rows)))
 
